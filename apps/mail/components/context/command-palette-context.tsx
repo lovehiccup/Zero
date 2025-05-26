@@ -8,18 +8,29 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from '@/components/ui/command';
-import { DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { useOpenComposeModal } from '@/hooks/use-open-compose-modal';
-import { navigationConfig, type NavItem } from '@/config/navigation';
-import { useNavigate, useLocation } from 'react-router';
-import { keyboardShortcuts } from '@/config/shortcuts';
-import { ArrowUpRight } from 'lucide-react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useMemo,
+  useCallback,
+  Suspense,
+  useEffect,
+  type ComponentType,
+  type ReactNode,
+  Fragment,
+} from 'react';
+import { getMainSearchTerm, parseNaturalLanguageSearch } from '@/lib/utils';
+import { DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import { Archive2, Pencil2, Star2, Tag, Trash } from '../icons/icons';
+import { Calendar, Filter, Mail, Search } from 'lucide-react';
+import { useSearchValue } from '@/hooks/use-search-value';
+import { useLocation, useNavigate } from 'react-router';
+import { navigationConfig } from '@/config/navigation';
+import { useThreads } from '@/hooks/use-threads';
 import { useTranslations } from 'use-intl';
-import { CircleHelp } from 'lucide-react';
 import { VisuallyHidden } from 'radix-ui';
-import { Pencil2 } from '../icons/icons';
 import { useQueryState } from 'nuqs';
-import * as React from 'react';
 
 type CommandPaletteContext = {
   open: boolean;
@@ -28,35 +39,77 @@ type CommandPaletteContext = {
 };
 
 type Props = {
-  children?: React.ReactNode | React.ReactNode[];
+  children?: ReactNode | ReactNode[];
 };
 
-type CommandItem = {
+interface CommandItem {
   title: string;
-  icon?: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
+  icon?: ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
   url?: string;
   onClick?: () => unknown;
   shortcut?: string;
   isBackButton?: boolean;
   disabled?: boolean;
-};
+  keywords?: string[];
+  description?: string;
+}
 
-const CommandPaletteContext = React.createContext<CommandPaletteContext | null>(null);
+interface FilterOption {
+  id: string;
+  name: string;
+  keywords: string[];
+  action: (currentSearch: string) => string;
+}
+
+type CommandView = 'main' | 'search' | 'filter';
+
+interface CommandItem {
+  title: string;
+  icon?: ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
+  url?: string;
+  onClick?: () => unknown;
+  shortcut?: string;
+  isBackButton?: boolean;
+  disabled?: boolean;
+  description?: string;
+}
+
+interface FilterOption {
+  id: string;
+  name: string;
+  keywords: string[];
+  action: (currentSearch: string) => string;
+}
+
+const CommandPaletteContext = createContext<CommandPaletteContext | null>(null);
 
 export function useCommandPalette() {
-  const context = React.useContext(CommandPaletteContext);
+  const context = useContext(CommandPaletteContext);
   if (!context) {
     throw new Error('useCommandPalette must be used within a CommandPaletteProvider.');
   }
   return context;
 }
 
-export function CommandPalette({ children }: { children: React.ReactNode }) {
-  const [open, setOpen] = React.useState(false);
+export function CommandPalette({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
   const [, setIsComposeOpen] = useQueryState('isComposeOpen');
+  const [currentView, setCurrentView] = useState<CommandView>('main');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchValue, setSearchValue] = useSearchValue();
+  const [, threads] = useThreads();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  React.useEffect(() => {
+  const t = useTranslations();
+
+  useEffect(() => {
+    if (!open) {
+      setCurrentView('main');
+      setSearchQuery('');
+    }
+  }, [open]);
+
+  useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -68,19 +121,96 @@ export function CommandPalette({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener('keydown', down);
   }, []);
 
-  const runCommand = React.useCallback((command: () => unknown) => {
+  const runCommand = useCallback((command: () => unknown) => {
     setOpen(false);
     command();
   }, []);
 
-  const t = useTranslations();
+  const filterOptions = useMemo<FilterOption[]>(
+    () => [
+      {
+        id: 'from',
+        name: 'From',
+        keywords: ['sender', 'from', 'author'],
+        action: (currentSearch: string) => `from:${currentSearch}`,
+      },
+      {
+        id: 'to',
+        name: 'To',
+        keywords: ['recipient', 'to', 'receiver'],
+        action: (currentSearch: string) => `to:${currentSearch}`,
+      },
+      {
+        id: 'subject',
+        name: 'Subject',
+        keywords: ['title', 'subject', 'about'],
+        action: (currentSearch: string) => `subject:${currentSearch}`,
+      },
+      {
+        id: 'has:attachment',
+        name: 'Has Attachment',
+        keywords: ['attachment', 'file', 'document'],
+        action: () => 'has:attachment',
+      },
+      {
+        id: 'is:starred',
+        name: 'Is Starred',
+        keywords: ['starred', 'favorite', 'important'],
+        action: () => 'is:starred',
+      },
+      {
+        id: 'is:unread',
+        name: 'Is Unread',
+        keywords: ['unread', 'new', 'unopened'],
+        action: () => 'is:unread',
+      },
+      {
+        id: 'after',
+        name: 'After Date',
+        keywords: ['date', 'after', 'since'],
+        action: (currentSearch: string) => `after:${currentSearch}`,
+      },
+      {
+        id: 'before',
+        name: 'Before Date',
+        keywords: ['date', 'before', 'until'],
+        action: (currentSearch: string) => `before:${currentSearch}`,
+      },
+      {
+        id: 'has:label',
+        name: 'Has Label',
+        keywords: ['label', 'tag', 'category'],
+        action: (currentSearch: string) => `has:${currentSearch}`,
+      },
+    ],
+    [],
+  );
 
-  const allCommands = React.useMemo(() => {
+  const executeSearch = useCallback(
+    (query: string) => {
+      setOpen(false);
+      const semanticQuery = parseNaturalLanguageSearch(query);
+      const finalQuery = semanticQuery || query;
+
+      setSearchValue({
+        value: finalQuery,
+        highlight: getMainSearchTerm(finalQuery),
+        folder: searchValue.folder,
+        isAISearching: Boolean(semanticQuery && semanticQuery !== query),
+      });
+
+      // setQuery(finalQuery);
+    },
+    [navigate, setSearchValue, searchValue],
+  );
+
+  const allCommands = useMemo(() => {
     type CommandGroup = {
       group: string;
       items: CommandItem[];
     };
 
+    const searchCommands: CommandItem[] = [];
     const mailCommands: CommandItem[] = [];
     const settingsCommands: CommandItem[] = [];
     const otherCommands: Record<string, CommandItem[]> = {};
@@ -91,6 +221,42 @@ export function CommandPalette({ children }: { children: React.ReactNode }) {
       shortcut: 'c',
       onClick: () => {
         setIsComposeOpen('true');
+      },
+    });
+
+    searchCommands.push({
+      title: 'Search Emails',
+      icon: Search,
+      shortcut: 's',
+      onClick: () => {
+        setCurrentView('search');
+      },
+      description: 'Search across your emails',
+    });
+
+    searchCommands.push({
+      title: 'Filter Emails',
+      icon: Filter,
+      shortcut: 'f',
+      onClick: () => {
+        setCurrentView('filter');
+      },
+      description: 'Filter emails by criteria',
+    });
+
+    searchCommands.push({
+      title: 'Starred Emails',
+      icon: Star2,
+      onClick: () => {
+        executeSearch('is:starred');
+      },
+    });
+
+    searchCommands.push({
+      title: 'Emails with Attachments',
+      icon: Tag,
+      onClick: () => {
+        executeSearch('has:attachment');
       },
     });
 
@@ -116,7 +282,6 @@ export function CommandPalette({ children }: { children: React.ReactNode }) {
               settingsCommands.push(item);
             }
           } else {
-            // Handle other command groups
             if (!otherCommands[sectionKey]) {
               otherCommands[sectionKey] = [];
             }
@@ -127,6 +292,10 @@ export function CommandPalette({ children }: { children: React.ReactNode }) {
     }
 
     const result: CommandGroup[] = [
+      {
+        group: 'Search & Filter',
+        items: searchCommands,
+      },
       {
         group: t('common.commandPalette.groups.mail'),
         items: mailCommands,
@@ -143,9 +312,7 @@ export function CommandPalette({ children }: { children: React.ReactNode }) {
         try {
           const translationKey = `common.commandPalette.groups.${groupKey}` as any;
           groupTitle = t(translationKey) || groupKey;
-        } catch {
-          // Fallback to the original key if translation fails
-        }
+        } catch {}
 
         result.push({
           group: groupTitle,
@@ -155,7 +322,256 @@ export function CommandPalette({ children }: { children: React.ReactNode }) {
     });
 
     return result;
-  }, [pathname, t]);
+  }, [pathname, t, executeSearch, setCurrentView, setIsComposeOpen]);
+
+  const renderMainView = () => (
+    <>
+      <CommandInput autoFocus placeholder={t('common.commandPalette.placeholder')} />
+      <CommandList>
+        <CommandEmpty>{t('common.commandPalette.noResults')}</CommandEmpty>
+        {allCommands.map((group, groupIndex) => (
+          <Fragment key={groupIndex}>
+            {group.items.length > 0 && (
+              <CommandGroup heading={group.group}>
+                {group.items.map((item: any) => (
+                  <CommandItem
+                    key={item.url || item.title}
+                    onSelect={() => {
+                      if (item.title === 'Search Emails' || item.title === 'Filter Emails') {
+                        if (item.onClick) {
+                          item.onClick();
+                          return false;
+                        }
+                      } else {
+                        runCommand(() => {
+                          if (item.onClick) {
+                            item.onClick();
+                          } else if (item.url) {
+                            navigate(item.url);
+                          }
+                        });
+                      }
+                    }}
+                  >
+                    {item.icon && (
+                      <item.icon
+                        size={16}
+                        strokeWidth={2}
+                        className="h-4 w-4 opacity-60"
+                        aria-hidden="true"
+                      />
+                    )}
+                    <div className="ml-2 flex flex-1 flex-col">
+                      <span>{t(item.title)}</span>
+                      {item.description && (
+                        <span className="text-muted-foreground text-xs">{t(item.description)}</span>
+                      )}
+                    </div>
+                    {item.shortcut && (
+                      <CommandShortcut>
+                        {item.shortcut === 'arrowUp'
+                          ? '↑'
+                          : item.shortcut === 'arrowDown'
+                            ? '↓'
+                            : item.shortcut}
+                      </CommandShortcut>
+                    )}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+            {groupIndex < allCommands.length - 1 && group.items.length > 0 && <CommandSeparator />}
+          </Fragment>
+        ))}
+      </CommandList>
+    </>
+  );
+
+  const renderSearchView = () => {
+    function quickResults() {
+      try {
+        if (!searchQuery || searchQuery.length < 2 || !threads) return [];
+
+        // Filter out undefined/null threads and ensure we have an array
+        const validThreads = Array.isArray(threads) ? threads.filter(Boolean) : [];
+        if (validThreads.length === 0) return [];
+
+        // Safely filter threads with defensive coding
+        return validThreads
+          .filter((thread) => {
+            try {
+              if (!thread || typeof thread !== 'object') return false;
+
+              const query = searchQuery.toLowerCase();
+
+              // Safely check each property with fallbacks
+              const snippet = thread.snippet?.toString() || '';
+              const subject = thread.subject?.toString() || '';
+              const fromName = thread.from?.name?.toString() || '';
+              const fromEmail = thread.from?.email?.toString() || '';
+
+              return (
+                snippet.toLowerCase().includes(query) ||
+                subject.toLowerCase().includes(query) ||
+                fromName.toLowerCase().includes(query) ||
+                fromEmail.toLowerCase().includes(query)
+              );
+            } catch (err) {
+              console.error('Error filtering thread:', err);
+              return false;
+            }
+          })
+          .slice(0, 5);
+      } catch (error) {
+        console.error('Error processing search results:', error);
+        return [];
+      }
+    }
+
+    return (
+      <>
+        <div className="flex items-center border-b px-3">
+          <button
+            className="text-muted-foreground hover:text-foreground mr-2"
+            onClick={() => setCurrentView('main')}
+          >
+            ←
+          </button>
+          <CommandInput
+            autoFocus
+            value={searchQuery}
+            onValueChange={setSearchQuery}
+            placeholder={t('common.commandPalette.searchPlaceholder')}
+            className="border-0"
+          />
+        </div>
+        <CommandList>
+          <CommandEmpty>{t('common.commandPalette.noSearchResults')}</CommandEmpty>
+
+          {quickResults.length > 0 && (
+            <CommandGroup heading={t('common.commandPalette.quickResults')}>
+              {quickResults.map((thread) => (
+                <CommandItem
+                  key={thread.id || `thread-${Math.random()}`}
+                  onSelect={() => {
+                    runCommand(() => {
+                      try {
+                        if (thread && thread.id) {
+                          navigate(`/inbox?threadId=${thread.id}`);
+                        }
+                      } catch (error) {
+                        console.error('Error navigating to thread:', error);
+                      }
+                    });
+                  }}
+                >
+                  <Mail className="h-4 w-4 opacity-60" />
+                  <div className="ml-2 flex flex-1 flex-col overflow-hidden">
+                    <span className="truncate font-medium">{thread.subject || 'No Subject'}</span>
+                    <span className="text-muted-foreground truncate text-xs">
+                      {thread.from?.name || thread.from?.email || 'Unknown sender'} -{' '}
+                      {thread.snippet || ''}
+                    </span>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          <CommandGroup heading={t('common.commandPalette.actions')}>
+            <CommandItem
+              onSelect={() => {
+                if (searchQuery) {
+                  executeSearch(searchQuery);
+                }
+              }}
+            >
+              <Search className="h-4 w-4 opacity-60" />
+              <span className="ml-2">
+                {t('common.commandPalette.searchForEmails', { query: searchQuery || '...' })}
+              </span>
+            </CommandItem>
+
+            <CommandItem
+              onSelect={() => {
+                setCurrentView('filter');
+              }}
+            >
+              <Filter className="h-4 w-4 opacity-60" />
+              <span className="ml-2">{t('common.commandPalette.addFilters')}</span>
+            </CommandItem>
+          </CommandGroup>
+        </CommandList>
+      </>
+    );
+  };
+
+  const renderFilterView = () => (
+    <>
+      <div className="flex items-center border-b px-3">
+        <button
+          className="text-muted-foreground hover:text-foreground mr-2"
+          onClick={() => setCurrentView('main')}
+        >
+          ←
+        </button>
+        <CommandInput
+          autoFocus
+          value={searchQuery}
+          onValueChange={setSearchQuery}
+          placeholder={t('common.commandPalette.filterPlaceholder')}
+          className="border-0"
+        />
+      </div>
+      <CommandList>
+        <CommandEmpty>{t('common.commandPalette.noFilterResults')}</CommandEmpty>
+
+        <CommandGroup heading={t('common.commandPalette.availableFilters')}>
+          {filterOptions
+            .filter(
+              (option) =>
+                !searchQuery ||
+                option.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                option.keywords.some((kw) => kw.toLowerCase().includes(searchQuery.toLowerCase())),
+            )
+            .map((filter) => (
+              <CommandItem
+                key={filter.id}
+                onSelect={() => {
+                  const newQuery = filter.action(searchQuery);
+                  executeSearch(newQuery);
+                }}
+              >
+                <Filter className="h-4 w-4 opacity-60" />
+                <span className="ml-2">{filter.name}</span>
+              </CommandItem>
+            ))}
+        </CommandGroup>
+
+        <CommandGroup heading={t('common.commandPalette.examples')}>
+          <CommandItem disabled>
+            <Calendar className="h-4 w-4 opacity-60" />
+            <span className="ml-2">{t('common.commandPalette.exampleDate')}</span>
+          </CommandItem>
+          <CommandItem disabled>
+            <Mail className="h-4 w-4 opacity-60" />
+            <span className="ml-2">{t('common.commandPalette.exampleSender')}</span>
+          </CommandItem>
+        </CommandGroup>
+      </CommandList>
+    </>
+  );
+
+  const renderView = () => {
+    switch (currentView) {
+      case 'search':
+        return renderSearchView();
+      case 'filter':
+        return renderFilterView();
+      default:
+        return renderMainView();
+    }
+  };
 
   return (
     <CommandPaletteContext.Provider
@@ -167,69 +583,21 @@ export function CommandPalette({ children }: { children: React.ReactNode }) {
         },
       }}
     >
-      <CommandDialog open={open} onOpenChange={setOpen}>
+      <CommandDialog
+        open={open}
+        onOpenChange={(isOpen) => {
+          if (!isOpen && currentView !== 'main') {
+            setCurrentView('main');
+            return;
+          }
+          setOpen(isOpen);
+        }}
+      >
         <VisuallyHidden.VisuallyHidden>
           <DialogTitle>{t('common.commandPalette.title')}</DialogTitle>
           <DialogDescription>{t('common.commandPalette.description')}</DialogDescription>
         </VisuallyHidden.VisuallyHidden>
-        <CommandInput autoFocus placeholder={t('common.commandPalette.placeholder')} />
-        <CommandList>
-          <CommandEmpty>{t('common.commandPalette.noResults')}</CommandEmpty>
-          {allCommands.map((group, groupIndex) => (
-            <React.Fragment key={groupIndex}>
-              {group.items.length > 0 && (
-                <CommandGroup heading={group.group}>
-                  {group.items.map((item: any) => (
-                    <CommandItem
-                      key={item.url || item.title}
-                      onSelect={() =>
-                        runCommand(() => {
-                          if (item.onClick) {
-                            item.onClick();
-                          } else if (item.url) {
-                            navigate(item.url);
-                          }
-                        })
-                      }
-                    >
-                      {item.icon && (
-                        <item.icon
-                          size={16}
-                          strokeWidth={2}
-                          className="h-4 w-4 opacity-60"
-                          aria-hidden="true"
-                        />
-                      )}
-                      <span>{t(item.title)}</span>
-                      {item.shortcut && <CommandShortcut>{item.shortcut}</CommandShortcut>}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-              {groupIndex < allCommands.length - 1 && <CommandSeparator />}
-            </React.Fragment>
-          ))}
-          <CommandSeparator />
-          <CommandGroup heading={t('common.commandPalette.groups.help')}>
-            {/* <CommandItem onSelect={() => runCommand(() => console.log('Help with shortcuts'))}>
-              <CircleHelp size={16} strokeWidth={2} className="opacity-60" aria-hidden="true" />
-              <span>{t('common.commandPalette.commands.helpWithShortcuts')}</span>
-              <CommandShortcut>
-                {keyboardShortcuts
-                  .find((s: { action: string; keys: string[] }) => s.action === 'helpWithShortcuts')
-                  ?.keys.join(' ')}
-              </CommandShortcut>
-            </CommandItem> */}
-            <CommandItem
-              onSelect={() =>
-                runCommand(() => window.open('https://github.com/Mail-0/Zero', '_blank'))
-              }
-            >
-              <ArrowUpRight size={16} strokeWidth={2} className="opacity-60" aria-hidden="true" />
-              <span>{t('common.commandPalette.commands.goToDocs')}</span>
-            </CommandItem>
-          </CommandGroup>
-        </CommandList>
+        {renderView()}
       </CommandDialog>
       {children}
     </CommandPaletteContext.Provider>
@@ -238,8 +606,8 @@ export function CommandPalette({ children }: { children: React.ReactNode }) {
 
 export const CommandPaletteProvider = ({ children }: Props) => {
   return (
-    <React.Suspense>
+    <Suspense>
       <CommandPalette>{children}</CommandPalette>
-    </React.Suspense>
+    </Suspense>
   );
 };
