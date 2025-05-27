@@ -558,7 +558,6 @@ export function CommandPalette({ children }: { children: ReactNode }) {
               <CommandEmpty>{t('common.commandPalette.noFilterResults')}</CommandEmpty>
             ) : null}
 
-            {/* Show all filters when there's no search query */}
             {!searchQuery ? (
               <CommandGroup heading={t('common.commandPalette.availableFilters')}>
                 {filterOptions.map((filter) => (
@@ -585,9 +584,7 @@ export function CommandPalette({ children }: { children: ReactNode }) {
                 ))}
               </CommandGroup>
             ) : (
-              /* When there's a search query, show matching filters and essential filters */
               <>
-                {/* Show matching filters */}
                 <CommandGroup heading="Matching Filters">
                   {filterOptions
                     .filter(
@@ -621,9 +618,7 @@ export function CommandPalette({ children }: { children: ReactNode }) {
                     ))}
                 </CommandGroup>
 
-                {/* Always show these essential filters when there's search text */}
                 <CommandGroup heading="Apply Search Term">
-                  {/* Essential sender/recipient filters */}
                   {['from', 'to', 'subject'].map((filterId) => {
                     const filter = filterOptions.find((f) => f.id === filterId);
                     if (!filter) return null;
@@ -733,11 +728,3 @@ export function CommandPalette({ children }: { children: ReactNode }) {
     </CommandPaletteContext.Provider>
   );
 }
-
-export const CommandPaletteProvider = ({ children }: Props) => {
-  return (
-    <Suspense>
-      <CommandPalette>{children}</CommandPalette>
-    </Suspense>
-  );
-};
