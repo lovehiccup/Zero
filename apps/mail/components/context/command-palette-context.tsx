@@ -24,11 +24,11 @@ import { Calendar as CalendarIcon, Filter, Mail, Search } from 'lucide-react';
 import { getMainSearchTerm, parseNaturalLanguageSearch } from '@/lib/utils';
 import { DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { useSearchValue } from '@/hooks/use-search-value';
-import { Pencil2, Star2, Tag, X } from '../icons/icons';
 import { useLocation, useNavigate } from 'react-router';
 import { navigationConfig } from '@/config/navigation';
 import { Calendar } from '@/components/ui/calendar';
 import { useThreads } from '@/hooks/use-threads';
+import { Pencil2, X } from '../icons/icons';
 import { useTranslations } from 'use-intl';
 import { VisuallyHidden } from 'radix-ui';
 import { useQueryState } from 'nuqs';
@@ -240,41 +240,41 @@ export function CommandPalette({ children }: { children: ReactNode }) {
       },
     });
 
-    searchCommands.push({
-      title: 'Search Emails',
-      icon: Search,
-      shortcut: 's',
-      onClick: () => {
-        setCurrentView('search');
-      },
-      description: 'Search across your emails',
-    });
+    // searchCommands.push({
+    //   title: 'Search Emails',
+    //   icon: Search,
+    //   // shortcut: 's',
+    //   onClick: () => {
+    //     setCurrentView('search');
+    //   },
+    //   description: 'Search across your emails',
+    // });
 
     searchCommands.push({
       title: 'Filter Emails',
       icon: Filter,
-      shortcut: 'f',
+      // shortcut: 'f',
       onClick: () => {
         setCurrentView('filter');
       },
       description: 'Filter emails by criteria',
     });
 
-    searchCommands.push({
-      title: 'Starred Emails',
-      icon: Star2,
-      onClick: () => {
-        executeSearch('is:starred');
-      },
-    });
+    // searchCommands.push({
+    //   title: 'Starred Emails',
+    //   icon: Star2,
+    //   onClick: () => {
+    //     executeSearch('is:starred');
+    //   },
+    // });
 
-    searchCommands.push({
-      title: 'Emails with Attachments',
-      icon: Tag,
-      onClick: () => {
-        executeSearch('has:attachment');
-      },
-    });
+    // searchCommands.push({
+    //   title: 'Emails with Attachments',
+    //   icon: Tag,
+    //   onClick: () => {
+    //     executeSearch('has:attachment');
+    //   },
+    // });
 
     for (const sectionKey in navigationConfig) {
       const section = navigationConfig[sectionKey];
@@ -403,124 +403,124 @@ export function CommandPalette({ children }: { children: ReactNode }) {
     </>
   );
 
-  const renderSearchView = () => {
-    function quickResults() {
-      try {
-        if (!searchQuery || searchQuery.length < 2 || !threads) return [];
+  // const renderSearchView = () => {
+  //   function quickResults() {
+  //     try {
+  //       if (!searchQuery || searchQuery.length < 2 || !threads) return [];
 
-        // Filter out undefined/null threads and ensure we have an array
-        const validThreads = Array.isArray(threads) ? threads.filter(Boolean) : [];
-        if (validThreads.length === 0) return [];
+  //       // Filter out undefined/null threads and ensure we have an array
+  //       const validThreads = Array.isArray(threads) ? threads.filter(Boolean) : [];
+  //       if (validThreads.length === 0) return [];
 
-        // Safely filter threads with defensive coding
-        return validThreads
-          .filter((thread) => {
-            try {
-              if (!thread || typeof thread !== 'object') return false;
+  //       // Safely filter threads with defensive coding
+  //       return validThreads
+  //         .filter((thread) => {
+  //           try {
+  //             if (!thread || typeof thread !== 'object') return false;
 
-              const query = searchQuery.toLowerCase();
+  //             const query = searchQuery.toLowerCase();
 
-              // Safely check each property with fallbacks
-              const snippet = thread.snippet?.toString() || '';
-              const subject = thread.subject?.toString() || '';
-              const fromName = thread.from?.name?.toString() || '';
-              const fromEmail = thread.from?.email?.toString() || '';
+  //             // Safely check each property with fallbacks
+  //             const snippet = thread.snippet?.toString() || '';
+  //             const subject = thread.subject?.toString() || '';
+  //             const fromName = thread.from?.name?.toString() || '';
+  //             const fromEmail = thread.from?.email?.toString() || '';
 
-              return (
-                snippet.toLowerCase().includes(query) ||
-                subject.toLowerCase().includes(query) ||
-                fromName.toLowerCase().includes(query) ||
-                fromEmail.toLowerCase().includes(query)
-              );
-            } catch (err) {
-              console.error('Error filtering thread:', err);
-              return false;
-            }
-          })
-          .slice(0, 5);
-      } catch (error) {
-        console.error('Error processing search results:', error);
-        return [];
-      }
-    }
+  //             return (
+  //               snippet.toLowerCase().includes(query) ||
+  //               subject.toLowerCase().includes(query) ||
+  //               fromName.toLowerCase().includes(query) ||
+  //               fromEmail.toLowerCase().includes(query)
+  //             );
+  //           } catch (err) {
+  //             console.error('Error filtering thread:', err);
+  //             return false;
+  //           }
+  //         })
+  //         .slice(0, 5);
+  //     } catch (error) {
+  //       console.error('Error processing search results:', error);
+  //       return [];
+  //     }
+  //   }
 
-    return (
-      <>
-        <div className="flex items-center border-b px-3">
-          <button
-            className="text-muted-foreground hover:text-foreground mr-2"
-            onClick={() => setCurrentView('main')}
-          >
-            ←
-          </button>
-          <CommandInput
-            autoFocus
-            value={searchQuery}
-            onValueChange={setSearchQuery}
-            placeholder={t('common.commandPalette.searchPlaceholder')}
-            className="border-0"
-          />
-        </div>
-        <CommandList>
-          <CommandEmpty>{t('common.commandPalette.noSearchResults')}</CommandEmpty>
+  //   return (
+  //     <>
+  //       <div className="flex items-center border-b px-3">
+  //         <button
+  //           className="text-muted-foreground hover:text-foreground mr-2"
+  //           onClick={() => setCurrentView('main')}
+  //         >
+  //           ←
+  //         </button>
+  //         <CommandInput
+  //           autoFocus
+  //           value={searchQuery}
+  //           onValueChange={setSearchQuery}
+  //           placeholder={t('common.commandPalette.searchPlaceholder')}
+  //           className="border-0"
+  //         />
+  //       </div>
+  //       <CommandList>
+  //         <CommandEmpty>{t('common.commandPalette.noSearchResults')}</CommandEmpty>
 
-          {quickResults.length > 0 && (
-            <CommandGroup heading={t('common.commandPalette.quickResults')}>
-              {quickResults.map((thread) => (
-                <CommandItem
-                  key={thread.id || `thread-${Math.random()}`}
-                  onSelect={() => {
-                    runCommand(() => {
-                      try {
-                        if (thread && thread.id) {
-                          navigate(`/inbox?threadId=${thread.id}`);
-                        }
-                      } catch (error) {
-                        console.error('Error navigating to thread:', error);
-                      }
-                    });
-                  }}
-                >
-                  <Mail className="h-4 w-4 opacity-60" />
-                  <div className="ml-2 flex flex-1 flex-col overflow-hidden">
-                    <span className="truncate font-medium">{thread.subject || 'No Subject'}</span>
-                    <span className="text-muted-foreground truncate text-xs">
-                      {thread.from?.name || thread.from?.email || 'Unknown sender'} -{' '}
-                      {thread.snippet || ''}
-                    </span>
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          )}
+  //         {quickResults.length > 0 && (
+  //           <CommandGroup heading={t('common.commandPalette.quickResults')}>
+  //             {quickResults.map((thread) => (
+  //               <CommandItem
+  //                 key={thread.id || `thread-${Math.random()}`}
+  //                 onSelect={() => {
+  //                   runCommand(() => {
+  //                     try {
+  //                       if (thread && thread.id) {
+  //                         navigate(`/inbox?threadId=${thread.id}`);
+  //                       }
+  //                     } catch (error) {
+  //                       console.error('Error navigating to thread:', error);
+  //                     }
+  //                   });
+  //                 }}
+  //               >
+  //                 <Mail className="h-4 w-4 opacity-60" />
+  //                 <div className="ml-2 flex flex-1 flex-col overflow-hidden">
+  //                   <span className="truncate font-medium">{thread.subject || 'No Subject'}</span>
+  //                   <span className="text-muted-foreground truncate text-xs">
+  //                     {thread.from?.name || thread.from?.email || 'Unknown sender'} -{' '}
+  //                     {thread.snippet || ''}
+  //                   </span>
+  //                 </div>
+  //               </CommandItem>
+  //             ))}
+  //           </CommandGroup>
+  //         )}
 
-          <CommandGroup heading={t('common.commandPalette.actions')}>
-            <CommandItem
-              onSelect={() => {
-                if (searchQuery) {
-                  executeSearch(searchQuery);
-                }
-              }}
-            >
-              <Search className="h-4 w-4 opacity-60" />
-              <span className="ml-2">
-                {t('common.commandPalette.searchForEmails', { query: searchQuery || '...' })}
-              </span>
-            </CommandItem>
+  //         <CommandGroup heading={t('common.commandPalette.actions')}>
+  //           <CommandItem
+  //             onSelect={() => {
+  //               if (searchQuery) {
+  //                 executeSearch(searchQuery);
+  //               }
+  //             }}
+  //           >
+  //             <Search className="h-4 w-4 opacity-60" />
+  //             <span className="ml-2">
+  //               {t('common.commandPalette.searchForEmails', { query: searchQuery || '...' })}
+  //             </span>
+  //           </CommandItem>
 
-            <CommandItem
-              onSelect={() => {
-                setCurrentView('filter');
-              }}
-            >
-              <Filter className="h-4 w-4 opacity-60" />
-              <span className="ml-2">{t('common.commandPalette.addFilters')}</span>
-            </CommandItem>
-          </CommandGroup>
-        </CommandList>
-      </>
-    );
-  };
+  //           <CommandItem
+  //             onSelect={() => {
+  //               setCurrentView('filter');
+  //             }}
+  //           >
+  //             <Filter className="h-4 w-4 opacity-60" />
+  //             <span className="ml-2">{t('common.commandPalette.addFilters')}</span>
+  //           </CommandItem>
+  //         </CommandGroup>
+  //       </CommandList>
+  //     </>
+  //   );
+  // };
 
   const renderFilterView = () => {
     return (
@@ -530,10 +530,8 @@ export function CommandPalette({ children }: { children: ReactNode }) {
             className="text-muted-foreground hover:text-foreground mr-2"
             onClick={() => {
               if (selectedDateFilter) {
-                // If in date picker view, go back to filter list
                 setSelectedDateFilter(null);
               } else {
-                // If in filter list view, go back to main view
                 setCurrentView('main');
               }
             }}
@@ -551,19 +549,19 @@ export function CommandPalette({ children }: { children: ReactNode }) {
 
         {!selectedDateFilter ? (
           <CommandList>
-            <CommandEmpty>{t('common.commandPalette.noFilterResults')}</CommandEmpty>
+            {filterOptions.filter(
+              (option) =>
+                !searchQuery ||
+                option.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                option.keywords.some((kw) => kw.toLowerCase().includes(searchQuery.toLowerCase())),
+            ).length === 0 ? (
+              <CommandEmpty>{t('common.commandPalette.noFilterResults')}</CommandEmpty>
+            ) : null}
 
-            <CommandGroup heading={t('common.commandPalette.availableFilters')}>
-              {filterOptions
-                .filter(
-                  (option) =>
-                    !searchQuery ||
-                    option.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    option.keywords.some((kw) =>
-                      kw.toLowerCase().includes(searchQuery.toLowerCase()),
-                    ),
-                )
-                .map((filter) => (
+            {/* Show all filters when there's no search query */}
+            {!searchQuery ? (
+              <CommandGroup heading={t('common.commandPalette.availableFilters')}>
+                {filterOptions.map((filter) => (
                   <CommandItem
                     key={filter.id}
                     onSelect={() => {
@@ -585,7 +583,68 @@ export function CommandPalette({ children }: { children: ReactNode }) {
                     <span className="ml-2">{filter.name}</span>
                   </CommandItem>
                 ))}
-            </CommandGroup>
+              </CommandGroup>
+            ) : (
+              /* When there's a search query, show matching filters and essential filters */
+              <>
+                {/* Show matching filters */}
+                <CommandGroup heading="Matching Filters">
+                  {filterOptions
+                    .filter(
+                      (option) =>
+                        option.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        option.keywords.some((kw) =>
+                          kw.toLowerCase().includes(searchQuery.toLowerCase()),
+                        ),
+                    )
+                    .map((filter) => (
+                      <CommandItem
+                        key={filter.id}
+                        onSelect={() => {
+                          if (filter.id === 'after' || filter.id === 'before') {
+                            setSelectedDateFilter(filter.id);
+                            setSelectedDate(undefined);
+                            return false;
+                          }
+
+                          const newQuery = filter.action(searchQuery);
+                          executeSearch(newQuery);
+                        }}
+                      >
+                        {filter.id === 'after' || filter.id === 'before' ? (
+                          <CalendarIcon className="h-4 w-4 opacity-60" />
+                        ) : (
+                          <Filter className="h-4 w-4 opacity-60" />
+                        )}
+                        <span className="ml-2">{filter.name}</span>
+                      </CommandItem>
+                    ))}
+                </CommandGroup>
+
+                {/* Always show these essential filters when there's search text */}
+                <CommandGroup heading="Apply Search Term">
+                  {/* Essential sender/recipient filters */}
+                  {['from', 'to', 'subject'].map((filterId) => {
+                    const filter = filterOptions.find((f) => f.id === filterId);
+                    if (!filter) return null;
+                    return (
+                      <CommandItem
+                        key={filter.id}
+                        onSelect={() => {
+                          const newQuery = filter.action(searchQuery);
+                          executeSearch(newQuery);
+                        }}
+                      >
+                        <Filter className="h-4 w-4 opacity-60" />
+                        <span className="ml-2">
+                          {filter.name}: <span className="font-medium">{searchQuery}</span>
+                        </span>
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+              </>
+            )}
 
             <CommandGroup heading={t('common.commandPalette.examples')}>
               <CommandItem disabled>
@@ -599,7 +658,6 @@ export function CommandPalette({ children }: { children: ReactNode }) {
             </CommandGroup>
           </CommandList>
         ) : (
-          /* Show date picker when a date filter is selected */
           <div className="px-4 py-4">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-sm font-medium">
@@ -636,8 +694,8 @@ export function CommandPalette({ children }: { children: ReactNode }) {
 
   const renderView = () => {
     switch (currentView) {
-      case 'search':
-        return renderSearchView();
+      // case 'search':
+      //   return renderSearchView();
       case 'filter':
         return renderFilterView();
       default:

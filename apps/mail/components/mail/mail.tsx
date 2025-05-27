@@ -511,6 +511,8 @@ export function MailLayout() {
                         </div>
                       ) : null}
                     </div>
+                    <ClearFiltersButton />
+                    <div className="dark:bg-iconDark/20 relative ml-2 mr-2 h-3 w-0.5 rounded-full bg-[#E7E7E7]" />{' '}
                     <AutoLabelingSettings />
                     <div className="dark:bg-iconDark/20 relative ml-2 h-3 w-0.5 rounded-full bg-[#E7E7E7]" />{' '}
                     <Button
@@ -580,6 +582,32 @@ export function MailLayout() {
         </ResizablePanelGroup>
       </div>
     </TooltipProvider>
+  );
+}
+
+function ClearFiltersButton() {
+  const [searchValue, setSearchValue] = useSearchValue();
+
+  console.log(searchValue);
+
+  if (searchValue.value === '' && searchValue.highlight === '' && searchValue.folder === '')
+    return null;
+
+  return (
+    <button
+      onClick={() => {
+        setSearchValue({
+          value: '',
+          highlight: '',
+          folder: '',
+          isLoading: false,
+          isAISearching: false,
+        });
+      }}
+      className="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-1 text-xs"
+    >
+      <X className="h-3 w-3" /> Clear filters
+    </button>
   );
 }
 
