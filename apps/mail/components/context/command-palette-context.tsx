@@ -10,27 +10,29 @@ import {
 } from '@/components/ui/command';
 import {
   createContext,
-  useContext,
-  useState,
-  useMemo,
-  useCallback,
+  Fragment,
   Suspense,
+  useCallback,
+  useContext,
   useEffect,
+  useMemo,
+  useState,
   type ComponentType,
   type ReactNode,
-  Fragment,
 } from 'react';
+import { Calendar as CalendarIcon, Filter, Mail, Search } from 'lucide-react';
 import { getMainSearchTerm, parseNaturalLanguageSearch } from '@/lib/utils';
 import { DialogDescription, DialogTitle } from '@/components/ui/dialog';
-import { Archive2, Pencil2, Star2, Tag, Trash } from '../icons/icons';
-import { Calendar, Filter, Mail, Search } from 'lucide-react';
 import { useSearchValue } from '@/hooks/use-search-value';
+import { Pencil2, Star2, Tag, X } from '../icons/icons';
 import { useLocation, useNavigate } from 'react-router';
 import { navigationConfig } from '@/config/navigation';
+import { Calendar } from '@/components/ui/calendar';
 import { useThreads } from '@/hooks/use-threads';
 import { useTranslations } from 'use-intl';
 import { VisuallyHidden } from 'radix-ui';
 import { useQueryState } from 'nuqs';
+import { format } from 'date-fns';
 
 type CommandPaletteContext = {
   open: boolean;
@@ -91,10 +93,24 @@ export function useCommandPalette() {
   return context;
 }
 
+interface ThreadWithMeta {
+  id: string;
+  historyId: string | null;
+  snippet?: string;
+  subject?: string;
+  from?: {
+    name?: string;
+    email?: string;
+  };
+  $raw?: unknown;
+}
+
 export function CommandPalette({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [, setIsComposeOpen] = useQueryState('isComposeOpen');
   const [currentView, setCurrentView] = useState<CommandView>('main');
+  const [selectedDateFilter, setSelectedDateFilter] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchValue, setSearchValue] = useSearchValue();
   const [, threads] = useThreads();
@@ -506,61 +522,117 @@ export function CommandPalette({ children }: { children: ReactNode }) {
     );
   };
 
-  const renderFilterView = () => (
-    <>
-      <div className="flex items-center border-b px-3">
-        <button
-          className="text-muted-foreground hover:text-foreground mr-2"
-          onClick={() => setCurrentView('main')}
-        >
-          ←
-        </button>
-        <CommandInput
-          autoFocus
-          value={searchQuery}
-          onValueChange={setSearchQuery}
-          placeholder={t('common.commandPalette.filterPlaceholder')}
-          className="border-0"
-        />
-      </div>
-      <CommandList>
-        <CommandEmpty>{t('common.commandPalette.noFilterResults')}</CommandEmpty>
+  const renderFilterView = () => {
+    return (
+      <>
+        <div className="flex items-center border-b px-3">
+          <button
+            className="text-muted-foreground hover:text-foreground mr-2"
+            onClick={() => {
+              if (selectedDateFilter) {
+                // If in date picker view, go back to filter list
+                setSelectedDateFilter(null);
+              } else {
+                // If in filter list view, go back to main view
+                setCurrentView('main');
+              }
+            }}
+          >
+            ←
+          </button>
+          <CommandInput
+            autoFocus
+            value={searchQuery}
+            onValueChange={setSearchQuery}
+            placeholder={t('common.commandPalette.filterPlaceholder')}
+            className="border-0"
+          />
+        </div>
 
-        <CommandGroup heading={t('common.commandPalette.availableFilters')}>
-          {filterOptions
-            .filter(
-              (option) =>
-                !searchQuery ||
-                option.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                option.keywords.some((kw) => kw.toLowerCase().includes(searchQuery.toLowerCase())),
-            )
-            .map((filter) => (
-              <CommandItem
-                key={filter.id}
-                onSelect={() => {
-                  const newQuery = filter.action(searchQuery);
-                  executeSearch(newQuery);
-                }}
-              >
-                <Filter className="h-4 w-4 opacity-60" />
-                <span className="ml-2">{filter.name}</span>
+        {!selectedDateFilter ? (
+          <CommandList>
+            <CommandEmpty>{t('common.commandPalette.noFilterResults')}</CommandEmpty>
+
+            <CommandGroup heading={t('common.commandPalette.availableFilters')}>
+              {filterOptions
+                .filter(
+                  (option) =>
+                    !searchQuery ||
+                    option.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    option.keywords.some((kw) =>
+                      kw.toLowerCase().includes(searchQuery.toLowerCase()),
+                    ),
+                )
+                .map((filter) => (
+                  <CommandItem
+                    key={filter.id}
+                    onSelect={() => {
+                      if (filter.id === 'after' || filter.id === 'before') {
+                        setSelectedDateFilter(filter.id);
+                        setSelectedDate(undefined);
+                        return false;
+                      }
+
+                      const newQuery = filter.action(searchQuery);
+                      executeSearch(newQuery);
+                    }}
+                  >
+                    {filter.id === 'after' || filter.id === 'before' ? (
+                      <CalendarIcon className="h-4 w-4 opacity-60" />
+                    ) : (
+                      <Filter className="h-4 w-4 opacity-60" />
+                    )}
+                    <span className="ml-2">{filter.name}</span>
+                  </CommandItem>
+                ))}
+            </CommandGroup>
+
+            <CommandGroup heading={t('common.commandPalette.examples')}>
+              <CommandItem disabled>
+                <CalendarIcon className="h-4 w-4 opacity-60" />
+                <span className="ml-2">{t('common.commandPalette.exampleDate')}</span>
               </CommandItem>
-            ))}
-        </CommandGroup>
-
-        <CommandGroup heading={t('common.commandPalette.examples')}>
-          <CommandItem disabled>
-            <Calendar className="h-4 w-4 opacity-60" />
-            <span className="ml-2">{t('common.commandPalette.exampleDate')}</span>
-          </CommandItem>
-          <CommandItem disabled>
-            <Mail className="h-4 w-4 opacity-60" />
-            <span className="ml-2">{t('common.commandPalette.exampleSender')}</span>
-          </CommandItem>
-        </CommandGroup>
-      </CommandList>
-    </>
-  );
+              <CommandItem disabled>
+                <Mail className="h-4 w-4 opacity-60" />
+                <span className="ml-2">{t('common.commandPalette.exampleSender')}</span>
+              </CommandItem>
+            </CommandGroup>
+          </CommandList>
+        ) : (
+          /* Show date picker when a date filter is selected */
+          <div className="px-4 py-4">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-sm font-medium">
+                {selectedDateFilter === 'after' ? 'Select date (after)' : 'Select date (before)'}
+              </h3>
+              <button
+                onClick={() => setSelectedDateFilter(null)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex flex-col items-center">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(date) => {
+                  setSelectedDate(date);
+                  if (date) {
+                    const formattedDate = format(date, 'yyyy/MM/dd');
+                    const filterAction = selectedDateFilter === 'after' ? 'after:' : 'before:';
+                    const newQuery = `${filterAction}${formattedDate}`;
+                    executeSearch(newQuery);
+                  }
+                }}
+                className="max-w-full rounded-md border"
+              />
+            </div>
+          </div>
+        )}
+      </>
+    );
+  };
 
   const renderView = () => {
     switch (currentView) {
