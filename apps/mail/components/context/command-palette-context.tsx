@@ -11,18 +11,16 @@ import {
 import {
   createContext,
   Fragment,
-  Suspense,
   useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
   type ComponentType,
-  type ReactNode,
 } from 'react';
-import { Calendar as CalendarIcon, Filter, Mail, Search } from 'lucide-react';
-import { getMainSearchTerm, parseNaturalLanguageSearch } from '@/lib/utils';
+import { cn, getMainSearchTerm, parseNaturalLanguageSearch } from '@/lib/utils';
 import { DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import { Calendar as CalendarIcon, Filter, Mail } from 'lucide-react';
 import { useSearchValue } from '@/hooks/use-search-value';
 import { useLocation, useNavigate } from 'react-router';
 import { navigationConfig } from '@/config/navigation';
@@ -31,6 +29,7 @@ import { useThreads } from '@/hooks/use-threads';
 import { Pencil2, X } from '../icons/icons';
 import { useTranslations } from 'use-intl';
 import { VisuallyHidden } from 'radix-ui';
+import { Button } from '../ui/button';
 import { useQueryState } from 'nuqs';
 import { format } from 'date-fns';
 
@@ -38,10 +37,6 @@ type CommandPaletteContext = {
   open: boolean;
   setOpen: (open: boolean) => void;
   openModal: () => void;
-};
-
-type Props = {
-  children?: ReactNode | ReactNode[];
 };
 
 interface CommandItem {
@@ -105,7 +100,7 @@ interface ThreadWithMeta {
   $raw?: unknown;
 }
 
-export function CommandPalette({ children }: { children: ReactNode }) {
+export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [, setIsComposeOpen] = useQueryState('isComposeOpen');
   const [currentView, setCurrentView] = useState<CommandView>('main');
@@ -699,15 +694,20 @@ export function CommandPalette({ children }: { children: ReactNode }) {
   };
 
   return (
-    <CommandPaletteContext.Provider
-      value={{
-        open,
-        setOpen,
-        openModal: () => {
-          setOpen(false);
-        },
-      }}
-    >
+    <>
+      <Button
+        variant="outline"
+        className={cn(
+          'text-muted-foreground relative h-9 w-full select-none justify-start rounded-[0.5rem] border bg-white text-sm font-normal shadow-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-[#141414]',
+        )}
+        onClick={() => setOpen(true)}
+      >
+        <span className="hidden lg:inline-flex">Search & Filters</span>
+        <span className="inline-flex lg:hidden">Search...</span>
+        <kbd className="bg-muted pointer-events-none absolute right-[0.45rem] top-[0.45rem] hidden h-5 select-none items-center gap-1 rounded border px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
+          <span className="text-xs">⌘</span>K
+        </kbd>
+      </Button>
       <CommandDialog
         open={open}
         onOpenChange={(isOpen) => {
@@ -724,7 +724,6 @@ export function CommandPalette({ children }: { children: ReactNode }) {
         </VisuallyHidden.VisuallyHidden>
         {renderView()}
       </CommandDialog>
-      {children}
-    </CommandPaletteContext.Provider>
+    </>
   );
 }
